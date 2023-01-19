@@ -2,12 +2,15 @@ const { expect } = require('chai');
 const loglevel = require('loglevel');
 const sinon = require('sinon');
 
-global.window = {
+global.self = {
   XMLHttpRequest: sinon.useFakeXMLHttpRequest(),
   setTimeout(fn) {
     fn();
   },
-  clearTimeout() {}
+  clearTimeout() {},
+  fetch() {
+    return Promise.resolve(new Response());
+  }
 };
 
 const other = require('loglevel-plugin-mock');

@@ -1,4 +1,5 @@
-const win = window;
+// eslint-disable-next-line no-restricted-globals
+const win = self;
 
 if (!win) {
   throw new Error('Plugin for browser usage only');
@@ -230,8 +231,6 @@ const remote = {
       throw new Error('You can assign a plugin only one time');
     }
 
-    if (!win.XMLHttpRequest) return logger;
-
     loglevel = logger;
 
     const config = assign(defaults, options);
@@ -274,22 +273,19 @@ const remote = {
 
       isSending = true;
 
-      const xhr = new win.XMLHttpRequest();
-      xhr.open(config.method, config.url, true);
-      xhr.setRequestHeader('Content-Type', contentType);
-      if (config.token) {
-        xhr.setRequestHeader('Authorization', `Bearer ${config.token}`);
-      }
-
       const { headers } = config;
-      for (const header in headers) {
-        if (hasOwnProperty.call(headers, header)) {
-          const value = headers[header];
-          if (value) {
-            xhr.setRequestHeader(header, value);
-          }
-        }
+
+      headers['Content-Type'] = contentType;
+      if (config.token) {
+        headers.Authorization = `Bearer ${config.token}`;
       }
+      const abortController = new AbortController();
+      const responsePromise = win.fetch(config.url, {
+        method: config.method,
+        headers,
+        signal: abortController.signal,
+        body: queue.content,
+      });
 
       function suspend(successful) {
         if (!successful) {
@@ -309,35 +305,28 @@ const remote = {
       if (config.timeout) {
         timeout = win.setTimeout(() => {
           isSending = false;
-          xhr.abort();
+          abortController.abort('Timeout reached');
           suspend();
         }, config.timeout);
       }
 
-      xhr.onreadystatechange = () => {
-        if (xhr.readyState !== 4) {
-          return;
-        }
-
+      responsePromise.then((response) => {
         isSending = false;
         win.clearTimeout(timeout);
-
-        if (xhr.status === 200) {
+        if (response.status === 200) {
           // eslint-disable-next-line prefer-destructuring
           interval = config.interval;
           queue.confirm();
           suspend(true);
         } else {
-          if (xhr.status === 401) {
+          if (response.status === 401) {
             const { token } = config;
             config.token = undefined;
             config.onUnauthorized(token);
           }
           suspend();
         }
-      };
-
-      xhr.send(queue.content);
+      });
     }
 
     originalFactory = logger.methodFactory;
