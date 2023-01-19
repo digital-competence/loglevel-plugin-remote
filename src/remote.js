@@ -194,7 +194,10 @@ const defaults = {
   method: 'POST',
   headers: {},
   token: '',
-  onUnauthorized: () => {},
+  tokenName: 'Bearer',
+  onUnauthorized() {
+    this.token = undefined;
+  },
   timeout: 0,
   interval: 1000,
   level: 'trace',
@@ -277,7 +280,7 @@ const remote = {
 
       headers['Content-Type'] = contentType;
       if (config.token) {
-        headers.Authorization = `Bearer ${config.token}`;
+        headers.Authorization = `${config.tokenName} ${config.token}`;
       }
       const abortController = new AbortController();
       const responsePromise = win.fetch(config.url, {
@@ -321,7 +324,6 @@ const remote = {
         } else {
           if (response.status === 401) {
             const { token } = config;
-            config.token = undefined;
             config.onUnauthorized(token);
           }
           suspend();
