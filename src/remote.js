@@ -313,22 +313,28 @@ const remote = {
         }, config.timeout);
       }
 
-      responsePromise.then((response) => {
-        isSending = false;
-        win.clearTimeout(timeout);
-        if (response.status === 200) {
-          // eslint-disable-next-line prefer-destructuring
-          interval = config.interval;
-          queue.confirm();
-          suspend(true);
-        } else {
-          if (response.status === 401) {
-            const { token } = config;
-            config.onUnauthorized(token);
+      responsePromise
+        .then((response) => {
+          isSending = false;
+          win.clearTimeout(timeout);
+          if (response.status === 200) {
+            // eslint-disable-next-line prefer-destructuring
+            interval = config.interval;
+            queue.confirm();
+            suspend(true);
+          } else {
+            if (response.status === 401) {
+              const { token } = config;
+              config.onUnauthorized(token);
+            }
+            suspend();
           }
+        })
+        .catch(() => {
+          isSending = false;
+          win.clearTimeout(timeout);
           suspend();
-        }
-      });
+        });
     }
 
     originalFactory = logger.methodFactory;
